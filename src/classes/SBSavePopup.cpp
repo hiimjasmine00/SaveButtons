@@ -4,13 +4,16 @@
 #include <Geode/binding/ButtonSprite.hpp>
 #include <Geode/binding/GameManager.hpp>
 #include <Geode/binding/LocalLevelManager.hpp>
+#define FTS_FUZZY_MATCH_IMPLEMENTATION
+#include <Geode/external/fts/fts_fuzzy_match.h>
 #include <Geode/loader/Mod.hpp>
-#include <Geode/loader/ModSettingsManager.hpp>
 #include <Geode/ui/Notification.hpp>
 #include <Geode/ui/Scrollbar.hpp>
-#include <Geode/ui/ScrollLayer.hpp>
+#include <Geode/ui/TextInput.hpp>
 
 using namespace geode::prelude;
+
+static std::string saveQuery;
 
 SBSavePopup* SBSavePopup::create() {
     auto ret = new SBSavePopup();
@@ -32,11 +35,6 @@ bool SBSavePopup::setup() {
     m_closeBtn->setID("close-button");
 
     m_mods = Loader::get()->getAllMods();
-    std::ranges::sort(m_mods, [](Mod* a, Mod* b) {
-        if (a->isInternal()) return true;
-        if (b->isInternal()) return false;
-        return string::caseInsensitiveCompare(a->getName(), b->getName()) == std::strong_ordering::less;
-    });
 
     auto saveMenu = CCMenu::create();
     saveMenu->setPosition({ 210.0f, 235.0f });
@@ -90,35 +88,99 @@ bool SBSavePopup::setup() {
     saveMenu->updateLayout();
     m_mainLayer->addChild(saveMenu);
 
-    auto scrollBackground = CCLayerColor::create({ 0, 0, 0, 100 }, 390.0f, 200.0f);
-    scrollBackground->setPosition({ 204.5f, 110.0f });
+    auto textInput = TextInput::create(400.0f, "Search Mods...");
+    textInput->setPosition({ 210.0f, 200.0f });
+    textInput->setString(saveQuery);
+    textInput->setCallback([this](const std::string& str) {
+        saveQuery = str;
+        updateMods(str);
+    });
+    textInput->setID("search-input");
+    m_mainLayer->addChild(textInput);
+
+    auto scrollBackground = CCLayerColor::create({ 0, 0, 0, 100 }, 390.0f, 170.0f);
+    scrollBackground->setPosition({ 204.5f, 95.0f });
     scrollBackground->ignoreAnchorPointForPosition(false);
     scrollBackground->setID("scroll-background");
     m_mainLayer->addChild(scrollBackground);
 
-    auto scrollLayer = ScrollLayer::create({ 380.0f, 190.0f });
-    scrollLayer->setPosition({ 204.5f, 110.0f });
-    scrollLayer->ignoreAnchorPointForPosition(false);
-    scrollLayer->m_contentLayer->setLayout(ColumnLayout::create()
+    m_scrollLayer = ScrollLayer::create({ 380.0f, 160.0f });
+    m_scrollLayer->setPosition({ 204.5f, 95.0f });
+    m_scrollLayer->ignoreAnchorPointForPosition(false);
+    m_scrollLayer->m_contentLayer->setLayout(ColumnLayout::create()
         ->setAxisReverse(true)
         ->setAxisAlignment(AxisAlignment::End)
         ->setAutoGrowAxis(190.0f)
         ->setGap(0.0f));
-    scrollLayer->setID("scroll-layer");
+    m_scrollLayer->setID("scroll-layer");
+    m_mainLayer->addChild(m_scrollLayer);
 
-    for (size_t i = 0; i < m_mods.size(); i++) {
-        scrollLayer->m_contentLayer->addChild(SBModCell::create(m_mods[i], i));
-    }
-
-    scrollLayer->m_contentLayer->updateLayout();
-    scrollLayer->scrollToTop();
-    m_mainLayer->addChild(scrollLayer);
-
-    auto scrollbar = Scrollbar::create(scrollLayer);
-    scrollbar->setPosition({ 406.5f, 110.0f });
+    auto scrollbar = Scrollbar::create(m_scrollLayer);
+    scrollbar->setPosition({ 406.5f, 95.0f });
     scrollbar->setScaleY(1.05f);
     scrollbar->setID("scrollbar");
     m_mainLayer->addChild(scrollbar);
 
+    updateMods(saveQuery);
+
     return true;
+}
+
+void weightedFuzzyMatch(std::string_view str, std::string_view query, double weight, double& current) {
+    int score;
+    if (fts::fuzzy_match(query.data(), str.data(), score)) {
+        auto finalScore = score * weight;
+        if (finalScore > current) current = finalScore;
+    }
+}
+
+void SBSavePopup::updateMods(std::string_view query) {
+    m_scrollLayer->m_contentLayer->removeAllChildren();
+
+    std::vector<std::pair<Mod*, double>> filteredMods;
+
+    for (auto mod : m_mods) {
+        if (query.empty()) {
+            filteredMods.emplace_back(mod, mod->isInternal() ? 5.0 : 0.0);
+            continue;
+        }
+
+        auto& metadata = mod->getMetadataRef();
+        auto weighted = 0.0;
+        weightedFuzzyMatch(metadata.getName(), query, 1.0, weighted);
+        weightedFuzzyMatch(metadata.getID(), query, 0.5, weighted);
+        for (auto& dev : metadata.getDevelopers()) {
+            weightedFuzzyMatch(dev, query, 0.25, weighted);
+        }
+        if (auto details = metadata.getDetails()) {
+            weightedFuzzyMatch(details.value(), query, 0.005, weighted);
+        }
+        if (auto desc = metadata.getDescription()) {
+            weightedFuzzyMatch(desc.value(), query, 0.02, weighted);
+        }
+        if (weighted >= 2.0) {
+            if (mod->isInternal()) weighted += 5.0;
+            filteredMods.emplace_back(mod, weighted);
+        }
+    }
+
+    std::ranges::sort(filteredMods, [](const std::pair<Mod*, double>& a, const std::pair<Mod*, double>& b) {
+        if (a.second != b.second) return a.second > b.second;
+
+        auto& aMeta = a.first->getMetadataRef();
+        auto& bMeta = b.first->getMetadataRef();
+
+        auto aOutdated = aMeta.checkTargetVersions().isErr();
+        auto bOutdated = bMeta.checkTargetVersions().isErr();
+        if (aOutdated != bOutdated) return aOutdated < bOutdated;
+
+        return string::caseInsensitiveCompare(aMeta.getName(), bMeta.getName()) == std::strong_ordering::less;
+    });
+
+    for (size_t i = 0; i < filteredMods.size(); i++) {
+        m_scrollLayer->m_contentLayer->addChild(SBModCell::create(filteredMods[i].first->getMetadataRef(), i));
+    }
+
+    m_scrollLayer->m_contentLayer->updateLayout();
+    m_scrollLayer->scrollToTop();
 }

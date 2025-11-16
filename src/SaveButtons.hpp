@@ -1,4 +1,5 @@
-#include <cocos2d.h>
+#include <chrono>
+#include <Geode/loader/Types.hpp>
 
 class SaveButtons {
 public:

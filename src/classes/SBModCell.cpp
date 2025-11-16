@@ -2,15 +2,71 @@
 #include "../SaveButtons.hpp"
 #include <Geode/binding/ButtonSprite.hpp>
 #include <Geode/binding/FLAlertLayer.hpp>
-#include <Geode/loader/Mod.hpp>
-#include <Geode/loader/ModSettingsManager.hpp>
+#include <Geode/loader/Loader.hpp>
 #include <Geode/ui/Notification.hpp>
+#include <Geode/utils/string.hpp>
 
 using namespace geode::prelude;
 
-SBModCell* SBModCell::create(Mod* mod, int index) {
+CCSize getLabelSize(std::u16string_view text, const char* font, int kerning = 0) {
+    if (text.empty()) return { 0.0f, 0.0f };
+
+    auto fontConfig = FNTConfigLoadFile(font);
+    auto lines = 1;
+    auto charSet = fontConfig->getCharacterSet();
+    auto fontDefDict = fontConfig->m_pFontDefDictionary;
+    auto kerningDict = fontConfig->m_pKerningDictionary;
+    auto maxWidth = 0;
+    auto previous = -1u;
+    auto nextX = 0;
+
+    for (size_t i = 0; i < text.size(); i++) {
+        uint32_t c = text[i];
+        if (c == '\n') {
+            nextX = 0;
+            lines++;
+            continue;
+        }
+
+        if (!charSet->contains(c)) {
+            c = std::toupper(c);
+            if (!charSet->contains(c)) continue;
+        }
+
+        tCCFontDefHashElement* fontElement = nullptr;
+        HASH_FIND_INT(fontDefDict, &c, fontElement);
+        if (!fontElement) continue;
+
+        auto& fontDef = fontElement->fontDef;
+        nextX += fontDef.xAdvance + kerning;
+
+        if (kerningDict) {
+            auto key = (previous << 16) | c;
+            tCCKerningHashElement* kerningElement = nullptr;
+            HASH_FIND_INT(kerningDict, &key, kerningElement);
+            if (kerningElement) nextX += kerningElement->amount;
+        }
+
+        if (nextX > maxWidth) maxWidth = nextX;
+        previous = c;
+        if (i + 1 == text.size()) {
+            maxWidth += std::max(0, (int)fontDef.rect.size.width - fontDef.xAdvance);
+        }
+    }
+
+    return CCSize { (float)maxWidth, (float)(fontConfig->m_nCommonHeight * lines) } / CCDirector::get()->getContentScaleFactor();
+}
+
+CCSize getLabelSize(std::string_view text, const char* font, int kerning = 0) {
+    if (auto str = utils::string::utf8ToUtf16(text)) {
+        return getLabelSize(str.unwrap(), font, kerning);
+    }
+    return { 0.0f, 0.0f };
+}
+
+SBModCell* SBModCell::create(const ModMetadata& metadata, int index) {
     auto ret = new SBModCell();
-    if (ret->init(mod, index)) {
+    if (ret->init(metadata, index)) {
         ret->autorelease();
         return ret;
     }
@@ -18,10 +74,10 @@ SBModCell* SBModCell::create(Mod* mod, int index) {
     return nullptr;
 }
 
-bool SBModCell::init(Mod* mod, int index) {
+bool SBModCell::init(const ModMetadata& metadata, int index) {
     if (!CCLayer::init()) return false;
 
-    setID(mod->getID());
+    setID(metadata.getID());
     setContentSize({ 380.0f, 30.0f });
 
     auto background = CCLayerColor::create(index % 2 == 0 ? ccColor4B { 161, 88, 44, 255 } : ccColor4B { 194, 114, 62, 255 }, 380.0f, 30.0f);
@@ -31,10 +87,13 @@ bool SBModCell::init(Mod* mod, int index) {
     background->setID("background");
     addChild(background);
 
-    auto nameLabel = CCLabelBMFont::create(mod->getName().c_str(), "bigFont.fnt");
+    auto nameLabel = CCLabelBMFont::create(metadata.getName().c_str(), "bigFont.fnt");
     nameLabel->setPosition({ 5.0f, 22.0f });
     nameLabel->setAnchorPoint({ 0.0f, 0.5f });
     nameLabel->setScale(0.37f);
+    if (metadata.checkTargetVersions().isErr()) {
+        nameLabel->setColor({ 125, 125, 125 });
+    }
     nameLabel->setID("name-label");
     addChild(nameLabel);
 
@@ -45,17 +104,17 @@ bool SBModCell::init(Mod* mod, int index) {
     buttonMenu->setID("button-menu");
     addChild(buttonMenu);
 
-    auto developersLabel = CCLabelBMFont::create(ModMetadata::formatDeveloperDisplayString(mod->getDevelopers()).c_str(), "goldFont.fnt");
+    auto developersLabel = CCLabelBMFont::create(ModMetadata::formatDeveloperDisplayString(metadata.getDevelopers()).c_str(), "goldFont.fnt");
     developersLabel->setScale(0.4f);
-    auto developersButton = CCMenuItemExt::createSpriteExtra(developersLabel, [mod](auto) {
-        auto developersTitle = CCLabelBMFont::create(fmt::format("{} Developers", mod->getName()).c_str(), "goldFont.fnt");
+    auto developersButton = CCMenuItemExt::createSpriteExtra(developersLabel, [&metadata](auto) {
+        auto title = fmt::format("{} Developers", metadata.getName());
         FLAlertLayer::create(
             nullptr,
-            developersTitle->getString(),
-            string::join(mod->getDevelopers(), "\n"),
+            title.c_str(),
+            string::join(metadata.getDevelopers(), "\n"),
             "OK",
             nullptr,
-            developersTitle->getContentWidth() * 0.9f + 40.0f
+            getLabelSize(title, "goldFont.fnt").width * 0.9f + 40.0f
         )->show();
     });
     developersButton->setPosition(developersLabel->getScaledContentSize() / 2.0f + CCPoint { 5.0f, 4.0f });
@@ -64,12 +123,12 @@ bool SBModCell::init(Mod* mod, int index) {
 
     auto saveSprite = ButtonSprite::create("Save", "goldFont.fnt", "GJ_button_04.png", 0.8f);
     saveSprite->setScale(0.8f);
-    auto saveButton = CCMenuItemExt::createSpriteExtra(saveSprite, [mod](auto) {
+    auto saveButton = CCMenuItemExt::createSpriteExtra(saveSprite, [&metadata](auto) {
         auto start = std::chrono::steady_clock::now();
-        auto [settings, saved] = SaveButtons::save(mod);
+        auto [settings, saved] = SaveButtons::save(Loader::get()->getInstalledMod(metadata.getID()));
         auto end = std::chrono::steady_clock::now();
 
-        auto name = mod->getName();
+        auto name = metadata.getName();
         auto format = SaveButtons::format(start, end);
         NotificationIcon icon;
         std::string message;

@@ -70,5 +70,5 @@ std::pair<bool, bool> SaveButtons::save(Mod* mod) {
     auto savedRes = file::writeStringSafe(saveDir / "saved.json", mod->getSavedSettingsData().dump());
     if (savedRes.isErr()) log::error("Failed to save saved data for {}: {}", name, savedRes.unwrapErr());
 
-    return std::make_pair(settingsRes.isOk(), savedRes.isOk());
+    return { settingsRes.isOk(), savedRes.isOk() };
 }

@@ -8,7 +8,7 @@
     },
     "id": "hiimjasmine00.save_buttons",
     "name": "Save Buttons",
-    "version": "v1.0.0",
+    "version": "v1.0.1",
     "developer": "hiimjasmine00",
     "description": "Save your data without closing the game.",
     "dependencies": {
