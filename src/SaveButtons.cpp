@@ -7,7 +7,7 @@
 using namespace geode::prelude;
 using namespace keybinds;
 
-void registerKeybind() {
+void SaveButtons::registerKeybind() {
     if (auto cat = CategoryV2::create("Save Buttons")) {
         std::vector<Ref<Bind>> defs;
         if (auto keybind = KeybindV2::create(KEY_S, ModifierV2::Control | ModifierV2::Shift)) {
@@ -34,19 +34,6 @@ void registerKeybind() {
                     return ListenerResult::Propagate;
                 }, InvokeBindFilterV2(nullptr, "save-popup"_spr));
             }
-        }
-    }
-}
-
-$on_mod(Loaded) {
-    if (auto customKeybinds = Loader::get()->getInstalledMod("geode.custom-keybinds")) {
-        if (customKeybinds->isEnabled()) {
-            registerKeybind();
-        }
-        else {
-            new EventListener(+[](ModStateEvent*) {
-                registerKeybind();
-            }, ModStateFilter(customKeybinds, ModEventType::Loaded));
         }
     }
 }

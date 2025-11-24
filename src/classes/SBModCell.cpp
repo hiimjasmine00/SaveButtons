@@ -8,62 +8,6 @@
 
 using namespace geode::prelude;
 
-CCSize getLabelSize(std::u16string_view text, const char* font, int kerning = 0) {
-    if (text.empty()) return { 0.0f, 0.0f };
-
-    auto fontConfig = FNTConfigLoadFile(font);
-    auto lines = 1;
-    auto charSet = fontConfig->getCharacterSet();
-    auto fontDefDict = fontConfig->m_pFontDefDictionary;
-    auto kerningDict = fontConfig->m_pKerningDictionary;
-    auto maxWidth = 0;
-    auto previous = -1u;
-    auto nextX = 0;
-
-    for (size_t i = 0; i < text.size(); i++) {
-        uint32_t c = text[i];
-        if (c == '\n') {
-            nextX = 0;
-            lines++;
-            continue;
-        }
-
-        if (!charSet->contains(c)) {
-            c = std::toupper(c);
-            if (!charSet->contains(c)) continue;
-        }
-
-        tCCFontDefHashElement* fontElement = nullptr;
-        HASH_FIND_INT(fontDefDict, &c, fontElement);
-        if (!fontElement) continue;
-
-        auto& fontDef = fontElement->fontDef;
-        nextX += fontDef.xAdvance + kerning;
-
-        if (kerningDict) {
-            auto key = (previous << 16) | c;
-            tCCKerningHashElement* kerningElement = nullptr;
-            HASH_FIND_INT(kerningDict, &key, kerningElement);
-            if (kerningElement) nextX += kerningElement->amount;
-        }
-
-        if (nextX > maxWidth) maxWidth = nextX;
-        previous = c;
-        if (i + 1 == text.size()) {
-            maxWidth += std::max(0, (int)fontDef.rect.size.width - fontDef.xAdvance);
-        }
-    }
-
-    return CCSize { (float)maxWidth, (float)(fontConfig->m_nCommonHeight * lines) } / CCDirector::get()->getContentScaleFactor();
-}
-
-CCSize getLabelSize(std::string_view text, const char* font, int kerning = 0) {
-    if (auto str = utils::string::utf8ToUtf16(text)) {
-        return getLabelSize(str.unwrap(), font, kerning);
-    }
-    return { 0.0f, 0.0f };
-}
-
 SBModCell* SBModCell::create(const ModMetadata& metadata, int index) {
     auto ret = new SBModCell();
     if (ret->init(metadata, index)) {

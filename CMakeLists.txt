@@ -9,7 +9,7 @@ endif()
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(GEODE_DISABLE_PRECOMPILED_HEADERS ON)
 
-project(SaveButtons VERSION 1.0.1)
+project(SaveButtons VERSION 1.0.2)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 
@@ -22,5 +22,8 @@ else()
 endif()
 
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
+
+CPMAddPackage("gh:hiimjasmine00/jasmine-tools@1.1.0")
+target_link_libraries(${PROJECT_NAME} jasmine-tools)
 
 setup_geode_mod(${PROJECT_NAME})
