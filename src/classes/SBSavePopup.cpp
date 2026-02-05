@@ -17,7 +17,7 @@ static std::string saveQuery;
 
 SBSavePopup* SBSavePopup::create() {
     auto ret = new SBSavePopup();
-    if (ret->initAnchored(420.0f, 290.0f)) {
+    if (ret->init()) {
         ret->autorelease();
         return ret;
     }
@@ -25,7 +25,9 @@ SBSavePopup* SBSavePopup::create() {
     return nullptr;
 }
 
-bool SBSavePopup::setup() {
+bool SBSavePopup::init() {
+    if (!Popup::init(420.0f, 290.0f)) return false;
+
     setID("SBSavePopup");
     setTitle("Save Buttons");
     m_title->setID("save-buttons-title");
@@ -35,6 +37,10 @@ bool SBSavePopup::setup() {
     m_closeBtn->setID("close-button");
 
     m_mods = Loader::get()->getAllMods();
+    for (auto it = m_mods.begin(); it != m_mods.end();) {
+        if ((*it)->getID().view().starts_with("geode_invalid.")) it = m_mods.erase(it);
+        else ++it;
+    }
 
     auto saveMenu = CCMenu::create();
     saveMenu->setPosition({ 210.0f, 235.0f });
@@ -44,20 +50,20 @@ bool SBSavePopup::setup() {
 
     auto gameDataSprite = ButtonSprite::create("Game Data", "goldFont.fnt", "GJ_button_01.png", 0.8f);
     auto gameDataButton = CCMenuItemExt::createSpriteExtra(gameDataSprite, [](auto) {
-        auto start = std::chrono::steady_clock::now();
+        auto timer = asp::Instant::now();
         GameManager::get()->save();
-        auto end = std::chrono::steady_clock::now();
-        Notification::create(fmt::format("Game data saved in {}", SaveButtons::format(start, end)), NotificationIcon::Success)->show();
+        auto elapsed = timer.elapsed();
+        Notification::create(fmt::format("Game data saved in {}", SaveButtons::format(elapsed)), NotificationIcon::Success)->show();
     });
     gameDataButton->setID("game-data-button");
     saveMenu->addChild(gameDataButton);
 
     auto localLevelsSprite = ButtonSprite::create("Local Levels", "goldFont.fnt", "GJ_button_02.png", 0.8f);
     auto localLevelsButton = CCMenuItemExt::createSpriteExtra(localLevelsSprite, [](auto) {
-        auto start = std::chrono::steady_clock::now();
+        auto timer = asp::Instant::now();
         LocalLevelManager::get()->save();
-        auto end = std::chrono::steady_clock::now();
-        Notification::create(fmt::format("Local levels saved in {}", SaveButtons::format(start, end)), NotificationIcon::Success)->show();
+        auto elapsed = timer.elapsed();
+        Notification::create(fmt::format("Local levels saved in {}", SaveButtons::format(elapsed)), NotificationIcon::Success)->show();
     });
     localLevelsButton->setID("local-levels-button");
     saveMenu->addChild(localLevelsButton);
@@ -66,13 +72,13 @@ bool SBSavePopup::setup() {
     auto modDataButton = CCMenuItemExt::createSpriteExtra(modDataSprite, [this](auto) {
         auto settings = 0;
         auto saved = 0;
-        auto start = std::chrono::steady_clock::now();
+        auto timer = asp::Instant::now();
         for (auto mod : m_mods) {
             auto pair = SaveButtons::save(mod);
             if (pair.first) settings++;
             if (pair.second) saved++;
         }
-        auto end = std::chrono::steady_clock::now();
+        auto elapsed = timer.elapsed();
 
         auto size = m_mods.size();
         auto icon = NotificationIcon::Info;
@@ -80,7 +86,7 @@ bool SBSavePopup::setup() {
         else if (settings == 0 && saved == 0) icon = NotificationIcon::Error;
 
         Notification::create(fmt::format("Mod data saved in {} (settings {}/{}, save data {}/{})",
-            SaveButtons::format(start, end), settings, size, saved, size), icon)->show();
+            SaveButtons::format(elapsed), settings, size, saved, size), icon)->show();
     });
     modDataButton->setID("mod-data-button");
     saveMenu->addChild(modDataButton);
@@ -145,7 +151,7 @@ void SBSavePopup::updateMods(std::string_view query) {
             continue;
         }
 
-        auto& metadata = mod->getMetadataRef();
+        auto& metadata = mod->getMetadata();
         auto weighted = 0.0;
         weightedFuzzyMatch(metadata.getName(), query, 1.0, weighted);
         weightedFuzzyMatch(metadata.getID(), query, 0.5, weighted);
@@ -167,8 +173,8 @@ void SBSavePopup::updateMods(std::string_view query) {
     std::ranges::sort(filteredMods, [](const std::pair<Mod*, double>& a, const std::pair<Mod*, double>& b) {
         if (a.second != b.second) return a.second > b.second;
 
-        auto& aMeta = a.first->getMetadataRef();
-        auto& bMeta = b.first->getMetadataRef();
+        auto& aMeta = a.first->getMetadata();
+        auto& bMeta = b.first->getMetadata();
 
         auto aOutdated = aMeta.checkTargetVersions().isErr();
         auto bOutdated = bMeta.checkTargetVersions().isErr();
@@ -178,7 +184,7 @@ void SBSavePopup::updateMods(std::string_view query) {
     });
 
     for (size_t i = 0; i < filteredMods.size(); i++) {
-        m_scrollLayer->m_contentLayer->addChild(SBModCell::create(filteredMods[i].first->getMetadataRef(), i));
+        m_scrollLayer->m_contentLayer->addChild(SBModCell::create(filteredMods[i].first->getMetadata(), i));
     }
 
     m_scrollLayer->m_contentLayer->updateLayout();

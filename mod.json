@@ -1,22 +1,16 @@
 {
-    "geode": "4.10.0",
+    "geode": "5.0.0-alpha.1",
     "gd": {
-        "win": "2.2074",
-        "android": "2.2074",
-        "mac": "2.2074",
-        "ios": "2.2074"
+        "win": "2.2081",
+        "android": "2.2081",
+        "mac": "2.2081",
+        "ios": "2.2081"
     },
     "id": "hiimjasmine00.save_buttons",
     "name": "Save Buttons",
-    "version": "v1.0.2",
+    "version": "v1.0.3-beta.1",
     "developer": "hiimjasmine00",
     "description": "Save your data without closing the game.",
-    "dependencies": {
-        "geode.custom-keybinds": {
-            "version": ">=v1.11.0",
-            "importance": "suggested"
-        }
-    },
     "resources": {
         "sprites": [
             "resources/*.png"

@@ -1,14 +1,14 @@
 #include "SaveButtons.hpp"
-#include "classes/SBSavePopup.hpp"
+//#include "classes/SBSavePopup.hpp"
 #include <Geode/loader/Mod.hpp>
 #include <Geode/loader/ModSettingsManager.hpp>
-#include <geode.custom-keybinds/include/OptionalAPI.hpp>
+//#include <geode.custom-keybinds/include/OptionalAPI.hpp>
 
 using namespace geode::prelude;
-using namespace keybinds;
+//using namespace keybinds;
 
 void SaveButtons::registerKeybind() {
-    if (auto cat = CategoryV2::create("Save Buttons")) {
+    /*if (auto cat = CategoryV2::create("Save Buttons")) {
         std::vector<Ref<Bind>> defs;
         if (auto keybind = KeybindV2::create(KEY_S, ModifierV2::Control | ModifierV2::Shift)) {
             defs.push_back(keybind.unwrap());
@@ -35,18 +35,17 @@ void SaveButtons::registerKeybind() {
                 }, InvokeBindFilterV2(nullptr, "save-popup"_spr));
             }
         }
-    }
+    }*/
 }
 
-std::string SaveButtons::format(const std::chrono::steady_clock::time_point& start, const std::chrono::steady_clock::time_point& end) {
-    auto dur = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count();
-    return fmt::format("{}.{:03}s", dur / 1000, dur % 1000);
+std::string SaveButtons::format(const asp::Duration& duration) {
+    return fmt::format("{}.{:03}s", duration.seconds(), duration.subsecMillis());
 }
 
 std::pair<bool, bool> SaveButtons::save(Mod* mod) {
     auto json = ModSettingsManager::from(mod)->save();
 
-    ModStateEvent(mod, ModEventType::DataSaved).post();
+    ModStateEvent(ModEventType::DataSaved, mod).send();
 
     auto name = mod->getName();
     auto saveDir = mod->getSaveDir();

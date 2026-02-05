@@ -1,5 +1,6 @@
 #include "SBModCell.hpp"
 #include "../SaveButtons.hpp"
+#include <asp/time/Instant.hpp>
 #include <Geode/binding/ButtonSprite.hpp>
 #include <Geode/binding/FLAlertLayer.hpp>
 #include <Geode/loader/Loader.hpp>
@@ -68,12 +69,12 @@ bool SBModCell::init(const ModMetadata& metadata, int index) {
     auto saveSprite = ButtonSprite::create("Save", "goldFont.fnt", "GJ_button_04.png", 0.8f);
     saveSprite->setScale(0.8f);
     auto saveButton = CCMenuItemExt::createSpriteExtra(saveSprite, [&metadata](auto) {
-        auto start = std::chrono::steady_clock::now();
+        auto timer = asp::Instant::now();
         auto [settings, saved] = SaveButtons::save(Loader::get()->getInstalledMod(metadata.getID()));
-        auto end = std::chrono::steady_clock::now();
+        auto elapsed = timer.elapsed();
 
         auto name = metadata.getName();
-        auto format = SaveButtons::format(start, end);
+        auto format = SaveButtons::format(elapsed);
         NotificationIcon icon;
         std::string message;
         if (settings && saved) {

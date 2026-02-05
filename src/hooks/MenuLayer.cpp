@@ -16,19 +16,19 @@ class $modify(SBMenuLayer, MenuLayer) {
                 keybindsLoaded(hook);
             }
             else {
-                new EventListener([hook](ModStateEvent*) {
+                ModStateEvent(ModEventType::Loaded, customKeybinds).listen([hook] {
                     jasmine::hook::toggle(hook, !jasmine::setting::getValue<bool>("hide-main-menu-button"));
                     keybindsLoaded(hook);
-                }, ModStateFilter(customKeybinds, ModEventType::Loaded));
+                }).leak();
             }
         }
     }
 
     static void keybindsLoaded(Hook* hook) {
         SaveButtons::registerKeybind();
-        new EventListener([hook](std::shared_ptr<SettingV3> setting) {
+        SettingChangedEventV3(GEODE_MOD_ID, "hide-main-menu-button").listen([hook](std::shared_ptr<SettingV3> setting) {
             jasmine::hook::toggle(hook, !std::static_pointer_cast<BoolSettingV3>(std::move(setting))->getValue());
-        }, SettingChangedFilterV3(GEODE_MOD_ID, "hide-main-menu-button"));
+        }).leak();
     }
 
     bool init() override {
