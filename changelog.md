@@ -1,5 +1,5 @@
 # Save Buttons Changelog
-## v1.0.3 (2026-02-05)
+## v1.0.3 (2026-02-08)
 - Ported to Geometry Dash v2.208 / Geode SDK v5.0.0
 
 ## v1.0.2 (2025-11-24)

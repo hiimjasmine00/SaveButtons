@@ -11,11 +11,11 @@ class $modify(SBMenuLayer, MenuLayer) {
     static void onModify(ModifyBase<ModifyDerive<SBMenuLayer, MenuLayer>>& self) {
         if (auto customKeybinds = Loader::get()->getInstalledMod("geode.custom-keybinds")) {
             auto hook = jasmine::hook::get(self.m_hooks, "MenuLayer::init", true);
-            if (customKeybinds->isEnabled()) {
+            if (customKeybinds->isLoaded()) {
                 hook->setAutoEnable(!jasmine::setting::getValue<bool>("hide-main-menu-button"));
                 keybindsLoaded(hook);
             }
-            else {
+            else if (customKeybinds->shouldLoad()) {
                 ModStateEvent(ModEventType::Loaded, customKeybinds).listen([hook] {
                     jasmine::hook::toggle(hook, !jasmine::setting::getValue<bool>("hide-main-menu-button"));
                     keybindsLoaded(hook);
