@@ -13,7 +13,7 @@
 
 using namespace geode::prelude;
 
-static std::string saveQuery;
+std::string saveQuery;
 
 SBSavePopup* SBSavePopup::create() {
     auto ret = new SBSavePopup();
@@ -72,10 +72,7 @@ bool SBSavePopup::init() {
     auto textInput = TextInput::create(400.0f, "Search Mods...");
     textInput->setPosition({ 210.0f, 200.0f });
     textInput->setString(saveQuery);
-    textInput->setCallback([this](const std::string& str) {
-        saveQuery = str;
-        updateMods(str);
-    });
+    textInput->setDelegate(this);
     textInput->setID("search-input");
     m_mainLayer->addChild(textInput);
 
@@ -102,7 +99,7 @@ bool SBSavePopup::init() {
     scrollbar->setID("scrollbar");
     m_mainLayer->addChild(scrollbar);
 
-    updateMods(saveQuery);
+    updateMods();
 
     return true;
 }
@@ -141,6 +138,11 @@ void SBSavePopup::onModData(CCObject* sender) {
         SaveButtons::format(elapsed), settings, size, saved, size), icon)->show();
 }
 
+void SBSavePopup::textChanged(CCTextInputNode* input) {
+    saveQuery = input->getString();
+    updateMods();
+}
+
 void weightedFuzzyMatch(std::string_view str, std::string_view query, double weight, double& current) {
     int score;
     if (fts::fuzzy_match(query.data(), str.data(), score)) {
@@ -149,29 +151,29 @@ void weightedFuzzyMatch(std::string_view str, std::string_view query, double wei
     }
 }
 
-void SBSavePopup::updateMods(std::string_view query) {
+void SBSavePopup::updateMods() {
     m_scrollLayer->m_contentLayer->removeAllChildren();
 
     std::vector<std::pair<Mod*, double>> filteredMods;
 
     for (auto mod : m_mods) {
-        if (query.empty()) {
+        if (saveQuery.empty()) {
             filteredMods.emplace_back(mod, mod->isInternal() ? 5.0 : 0.0);
             continue;
         }
 
         auto& metadata = mod->getMetadata();
         auto weighted = 0.0;
-        weightedFuzzyMatch(metadata.getName(), query, 1.0, weighted);
-        weightedFuzzyMatch(metadata.getID(), query, 0.5, weighted);
+        weightedFuzzyMatch(metadata.getName(), saveQuery, 1.0, weighted);
+        weightedFuzzyMatch(metadata.getID(), saveQuery, 0.5, weighted);
         for (auto& dev : metadata.getDevelopers()) {
-            weightedFuzzyMatch(dev, query, 0.25, weighted);
+            weightedFuzzyMatch(dev, saveQuery, 0.25, weighted);
         }
         if (auto details = metadata.getDetails()) {
-            weightedFuzzyMatch(details.value(), query, 0.005, weighted);
+            weightedFuzzyMatch(details.value(), saveQuery, 0.005, weighted);
         }
         if (auto desc = metadata.getDescription()) {
-            weightedFuzzyMatch(desc.value(), query, 0.02, weighted);
+            weightedFuzzyMatch(desc.value(), saveQuery, 0.02, weighted);
         }
         if (weighted >= 2.0) {
             if (mod->isInternal()) weighted += 5.0;
