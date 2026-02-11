@@ -3,15 +3,15 @@
 #include <asp/time/Instant.hpp>
 #include <Geode/binding/ButtonSprite.hpp>
 #include <Geode/binding/FLAlertLayer.hpp>
-#include <Geode/loader/Loader.hpp>
+#include <Geode/loader/Mod.hpp>
 #include <Geode/ui/Notification.hpp>
 #include <Geode/utils/string.hpp>
 
 using namespace geode::prelude;
 
-SBModCell* SBModCell::create(const ModMetadata& metadata, int index) {
+SBModCell* SBModCell::create(Mod* mod, int index) {
     auto ret = new SBModCell();
-    if (ret->init(metadata, index)) {
+    if (ret->init(mod, index)) {
         ret->autorelease();
         return ret;
     }
@@ -19,8 +19,12 @@ SBModCell* SBModCell::create(const ModMetadata& metadata, int index) {
     return nullptr;
 }
 
-bool SBModCell::init(const ModMetadata& metadata, int index) {
+bool SBModCell::init(Mod* mod, int index) {
     if (!CCLayer::init()) return false;
+
+    auto& metadata = mod->getMetadata();
+    m_metadata = &metadata;
+    m_mod = Loader::get()->getInstalledMod(m_metadata->getID());
 
     setID(metadata.getID());
     setContentSize({ 380.0f, 30.0f });
@@ -51,52 +55,56 @@ bool SBModCell::init(const ModMetadata& metadata, int index) {
 
     auto developersLabel = CCLabelBMFont::create(ModMetadata::formatDeveloperDisplayString(metadata.getDevelopers()).c_str(), "goldFont.fnt");
     developersLabel->setScale(0.4f);
-    auto developersButton = CCMenuItemExt::createSpriteExtra(developersLabel, [&metadata](auto) {
-        auto title = fmt::format("{} Developers", metadata.getName());
-        FLAlertLayer::create(
-            nullptr,
-            title.c_str(),
-            string::join(metadata.getDevelopers(), "\n"),
-            "OK",
-            nullptr,
-            getLabelSize(title, "goldFont.fnt").width * 0.9f + 40.0f
-        )->show();
-    });
+    auto developersButton = CCMenuItemSpriteExtra::create(developersLabel, this, menu_selector(SBModCell::onDevelopers));
     developersButton->setPosition(developersLabel->getScaledContentSize() / 2.0f + CCPoint { 5.0f, 4.0f });
     developersButton->setID("developers-button");
     buttonMenu->addChild(developersButton);
 
     auto saveSprite = ButtonSprite::create("Save", "goldFont.fnt", "GJ_button_04.png", 0.8f);
     saveSprite->setScale(0.8f);
-    auto saveButton = CCMenuItemExt::createSpriteExtra(saveSprite, [&metadata](auto) {
-        auto timer = asp::Instant::now();
-        auto [settings, saved] = SaveButtons::save(Loader::get()->getInstalledMod(metadata.getID()));
-        auto elapsed = timer.elapsed();
-
-        auto name = metadata.getName();
-        auto format = SaveButtons::format(elapsed);
-        NotificationIcon icon;
-        std::string message;
-        if (settings && saved) {
-            icon = NotificationIcon::Success;
-            message = fmt::format("Mod data for {} saved in {}", name, format);
-        }
-        else if (!settings && !saved) {
-            icon = NotificationIcon::Error;
-            message = fmt::format("Failed to save mod data for {} in {}", name, format);
-        }
-        else {
-            icon = NotificationIcon::Info;
-            message = fmt::format("Mod data for {} saved without {} in {}", name, !settings ? "settings" : "save data", format);
-        }
-
-        Notification::create(message, icon)->show();
-    });
+    auto saveButton = CCMenuItemSpriteExtra::create(saveSprite, this, menu_selector(SBModCell::onSave));
     saveButton->setPosition({ 380.0f - saveSprite->getScaledContentSize().width / 2.0f - 5.0f, 15.0f });
     saveButton->setID("save-button");
     buttonMenu->addChild(saveButton);
 
     return true;
+}
+
+void SBModCell::onDevelopers(CCObject* sender) {
+    auto title = fmt::format("{} Developers", m_metadata->getName());
+    FLAlertLayer::create(
+        nullptr,
+        title.c_str(),
+        string::join(m_metadata->getDevelopers(), "\n"),
+        "OK",
+        nullptr,
+        getLabelSize(title, "goldFont.fnt").width * 0.9f + 40.0f
+    )->show();
+}
+
+void SBModCell::onSave(CCObject* sender) {
+    auto timer = asp::Instant::now();
+    auto [settings, saved] = SaveButtons::save(m_mod);
+    auto elapsed = timer.elapsed();
+
+    auto name = m_metadata->getName();
+    auto format = SaveButtons::format(elapsed);
+    NotificationIcon icon;
+    std::string message;
+    if (settings && saved) {
+        icon = NotificationIcon::Success;
+        message = fmt::format("Mod data for {} saved in {}", name, format);
+    }
+    else if (!settings && !saved) {
+        icon = NotificationIcon::Error;
+        message = fmt::format("Failed to save mod data for {} in {}", name, format);
+    }
+    else {
+        icon = NotificationIcon::Info;
+        message = fmt::format("Mod data for {} saved without {} in {}", name, !settings ? "settings" : "save data", format);
+    }
+
+    Notification::create(message, icon)->show();
 }
 
 void SBModCell::draw() {

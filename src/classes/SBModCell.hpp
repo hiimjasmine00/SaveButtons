@@ -3,9 +3,14 @@
 
 class SBModCell : public cocos2d::CCLayer {
 protected:
-    bool init(const geode::ModMetadata& metadata, int index);
+    const geode::ModMetadata* m_metadata;
+    geode::Mod* m_mod;
+
+    bool init(geode::Mod* mod, int index);
+    void onDevelopers(cocos2d::CCObject*);
+    void onSave(cocos2d::CCObject*);
 public:
-    static SBModCell* create(const geode::ModMetadata& metadata, int index);
+    static SBModCell* create(geode::Mod* mod, int index);
 
     void draw() override;
 };

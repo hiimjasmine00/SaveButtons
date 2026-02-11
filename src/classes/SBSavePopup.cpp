@@ -38,7 +38,7 @@ bool SBSavePopup::init() {
 
     m_mods = Loader::get()->getAllMods();
     for (auto it = m_mods.begin(); it != m_mods.end();) {
-        if ((*it)->getID().view().starts_with("geode_invalid.")) it = m_mods.erase(it);
+        if ((*it)->getID().view().starts_with("geode_invalid-")) it = m_mods.erase(it);
         else ++it;
     }
 
@@ -48,46 +48,21 @@ bool SBSavePopup::init() {
     saveMenu->setLayout(RowLayout::create()->setGap(5.0f));
     saveMenu->setID("save-menu");
 
-    auto gameDataSprite = ButtonSprite::create("Game Data", "goldFont.fnt", "GJ_button_01.png", 0.8f);
-    auto gameDataButton = CCMenuItemExt::createSpriteExtra(gameDataSprite, [](auto) {
-        auto timer = asp::Instant::now();
-        GameManager::get()->save();
-        auto elapsed = timer.elapsed();
-        Notification::create(fmt::format("Game data saved in {}", SaveButtons::format(elapsed)), NotificationIcon::Success)->show();
-    });
+    auto gameDataButton = CCMenuItemSpriteExtra::create(
+        ButtonSprite::create("Game Data", "goldFont.fnt", "GJ_button_01.png", 0.8f), this, menu_selector(SBSavePopup::onGameData)
+    );
     gameDataButton->setID("game-data-button");
     saveMenu->addChild(gameDataButton);
 
-    auto localLevelsSprite = ButtonSprite::create("Local Levels", "goldFont.fnt", "GJ_button_02.png", 0.8f);
-    auto localLevelsButton = CCMenuItemExt::createSpriteExtra(localLevelsSprite, [](auto) {
-        auto timer = asp::Instant::now();
-        LocalLevelManager::get()->save();
-        auto elapsed = timer.elapsed();
-        Notification::create(fmt::format("Local levels saved in {}", SaveButtons::format(elapsed)), NotificationIcon::Success)->show();
-    });
+    auto localLevelsButton = CCMenuItemSpriteExtra::create(
+        ButtonSprite::create("Local Levels", "goldFont.fnt", "GJ_button_02.png", 0.8f), this, menu_selector(SBSavePopup::onLocalLevels)
+    );
     localLevelsButton->setID("local-levels-button");
     saveMenu->addChild(localLevelsButton);
 
-    auto modDataSprite = ButtonSprite::create("Mod Data", "goldFont.fnt", "GJ_button_03.png", 0.8f);
-    auto modDataButton = CCMenuItemExt::createSpriteExtra(modDataSprite, [this](auto) {
-        auto settings = 0;
-        auto saved = 0;
-        auto timer = asp::Instant::now();
-        for (auto mod : m_mods) {
-            auto pair = SaveButtons::save(mod);
-            if (pair.first) settings++;
-            if (pair.second) saved++;
-        }
-        auto elapsed = timer.elapsed();
-
-        auto size = m_mods.size();
-        auto icon = NotificationIcon::Info;
-        if (settings >= size && saved >= size) icon = NotificationIcon::Success;
-        else if (settings == 0 && saved == 0) icon = NotificationIcon::Error;
-
-        Notification::create(fmt::format("Mod data saved in {} (settings {}/{}, save data {}/{})",
-            SaveButtons::format(elapsed), settings, size, saved, size), icon)->show();
-    });
+    auto modDataButton = CCMenuItemSpriteExtra::create(
+        ButtonSprite::create("Mod Data", "goldFont.fnt", "GJ_button_03.png", 0.8f), this, menu_selector(SBSavePopup::onModData)
+    );
     modDataButton->setID("mod-data-button");
     saveMenu->addChild(modDataButton);
 
@@ -130,6 +105,40 @@ bool SBSavePopup::init() {
     updateMods(saveQuery);
 
     return true;
+}
+
+void SBSavePopup::onGameData(CCObject* sender) {
+    auto timer = asp::Instant::now();
+    GameManager::get()->save();
+    auto elapsed = timer.elapsed();
+    Notification::create(fmt::format("Game data saved in {}", SaveButtons::format(elapsed)), NotificationIcon::Success)->show();
+}
+
+void SBSavePopup::onLocalLevels(CCObject* sender) {
+    auto timer = asp::Instant::now();
+    LocalLevelManager::get()->save();
+    auto elapsed = timer.elapsed();
+    Notification::create(fmt::format("Local levels saved in {}", SaveButtons::format(elapsed)), NotificationIcon::Success)->show();
+}
+
+void SBSavePopup::onModData(CCObject* sender) {
+    auto settings = 0;
+    auto saved = 0;
+    auto timer = asp::Instant::now();
+    for (auto mod : m_mods) {
+        auto pair = SaveButtons::save(mod);
+        if (pair.first) settings++;
+        if (pair.second) saved++;
+    }
+    auto elapsed = timer.elapsed();
+
+    auto size = m_mods.size();
+    auto icon = NotificationIcon::Info;
+    if (settings >= size && saved >= size) icon = NotificationIcon::Success;
+    else if (settings == 0 && saved == 0) icon = NotificationIcon::Error;
+
+    Notification::create(fmt::format("Mod data saved in {} (settings {}/{}, save data {}/{})",
+        SaveButtons::format(elapsed), settings, size, saved, size), icon)->show();
 }
 
 void weightedFuzzyMatch(std::string_view str, std::string_view query, double weight, double& current) {
@@ -184,7 +193,7 @@ void SBSavePopup::updateMods(std::string_view query) {
     });
 
     for (size_t i = 0; i < filteredMods.size(); i++) {
-        m_scrollLayer->m_contentLayer->addChild(SBModCell::create(filteredMods[i].first->getMetadata(), i));
+        m_scrollLayer->m_contentLayer->addChild(SBModCell::create(filteredMods[i].first, i));
     }
 
     m_scrollLayer->m_contentLayer->updateLayout();

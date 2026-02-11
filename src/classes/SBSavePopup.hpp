@@ -8,6 +8,9 @@ protected:
     geode::ScrollLayer* m_scrollLayer;
 
     bool init() override;
+    void onGameData(cocos2d::CCObject*);
+    void onLocalLevels(cocos2d::CCObject*);
+    void onModData(cocos2d::CCObject*);
     void updateMods(std::string_view query);
 public:
     static SBSavePopup* create();
