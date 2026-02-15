@@ -1,5 +1,5 @@
 {
-    "geode": "5.0.0-alpha.2",
+    "geode": "5.0.0-beta.1",
     "gd": {
         "win": "2.2081",
         "android": "2.2081",
@@ -8,7 +8,7 @@
     },
     "id": "hiimjasmine00.save_buttons",
     "name": "Save Buttons",
-    "version": "v1.0.3-beta.1",
+    "version": "v1.0.3",
     "developer": "hiimjasmine00",
     "description": "Save your data without closing the game.",
     "resources": {
@@ -20,9 +20,19 @@
         "hide-main-menu-button": {
             "name": "Hide Main Menu Button",
             "description": "Hides the save button on the main menu.",
-            "enable-if": "loaded:geode.custom-keybinds",
             "type": "bool",
             "default": false
+        },
+        "save-popup": {
+            "name": "Open Save Popup",
+            "description": "Opens the Save Buttons popup.",
+            "type": "keybind",
+            "default": {
+                "win": "Ctrl+Shift+S",
+                "android": "Ctrl+Shift+S",
+                "mac": ["Cmd+Shift+S", "Ctrl+Shift+S"],
+                "ios": ["Cmd+Shift+S", "Ctrl+Shift+S"]
+            }
         }
     },
     "links": {

@@ -3,7 +3,6 @@
 
 class SaveButtons {
 public:
-    static void registerKeybind();
     static std::string format(const asp::Duration& duration);
     static std::pair<bool, bool> save(geode::Mod* mod);
 };

@@ -1,41 +1,15 @@
 #include "SaveButtons.hpp"
-//#include "classes/SBSavePopup.hpp"
+#include "classes/SBSavePopup.hpp"
+#include <Geode/loader/GameEvent.hpp>
 #include <Geode/loader/Mod.hpp>
 #include <Geode/loader/ModSettingsManager.hpp>
-//#include <geode.custom-keybinds/include/OptionalAPI.hpp>
 
 using namespace geode::prelude;
-//using namespace keybinds;
 
-void SaveButtons::registerKeybind() {
-    /*if (auto cat = CategoryV2::create("Save Buttons")) {
-        std::vector<Ref<Bind>> defs;
-        if (auto keybind = KeybindV2::create(KEY_S, ModifierV2::Control | ModifierV2::Shift)) {
-            defs.push_back(keybind.unwrap());
-        }
-        else return;
-        #ifdef GEODE_IS_MACOS
-        if (auto keybind = KeybindV2::create(KEY_S, ModifierV2::Command | ModifierV2::Shift)) {
-            defs.push_back(keybind.unwrap());
-        }
-        else return;
-        #endif
-
-        if (auto action = BindableActionV2::create(
-            "save-popup"_spr,
-            "Open Save Popup",
-            "Open the Save Buttons popup",
-            defs,
-            std::move(cat).unwrap()
-        )) {
-            if (BindManagerV2::registerBindable(std::move(action).unwrap())) {
-                new EventListener(+[](InvokeBindEventV2* event) {
-                    if (event->isDown()) SBSavePopup::create()->show();
-                    return ListenerResult::Propagate;
-                }, InvokeBindFilterV2(nullptr, "save-popup"_spr));
-            }
-        }
-    }*/
+$on_game(Loaded) {
+    listenForKeybindSettingPresses("save-popup", [](const Keybind& keybind, bool down, bool repeat) {
+        if (down && !repeat) SBSavePopup::create()->show();
+    });
 }
 
 std::string SaveButtons::format(const asp::Duration& duration) {
