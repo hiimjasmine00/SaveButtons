@@ -9,7 +9,7 @@ endif()
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(GEODE_DISABLE_PRECOMPILED_HEADERS ON)
 
-project(SaveButtons VERSION 1.0.3)
+project(SaveButtons VERSION 1.0.4)
 
 file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS src/*.cpp)
 

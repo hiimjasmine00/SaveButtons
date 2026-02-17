@@ -7,7 +7,7 @@
 using namespace geode::prelude;
 
 $on_game(Loaded) {
-    listenForKeybindSettingPresses("save-popup", [](const Keybind& keybind, bool down, bool repeat) {
+    listenForKeybindSettingPresses("save-popup", [](const Keybind& keybind, bool down, bool repeat, double timestamp) {
         if (down && !repeat) SBSavePopup::create()->show();
     });
 }
