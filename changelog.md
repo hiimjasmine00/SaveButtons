@@ -1,5 +1,5 @@
 # Save Buttons Changelog
-## v1.0.4 (2026-02-17)
+## v1.0.4 (2026-02-18)
 - Fixed keybind support
 
 ## v1.0.3 (2026-02-14)
